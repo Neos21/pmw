@@ -1,0 +1,230 @@
+#!/bin/bash
+
+# ==========
+# [pmw] : Package Manager Wrapper
+# 
+# パッケージ管理ツールのコマンドをラップするスクリプト
+# ==========
+
+
+# 変数定義
+# ==========
+
+# 対応するメインコマンド名
+available_main_commands='dnf,yum,apt,apt-get,pacman'
+
+# ラッパーサブコマンド名
+sub_commands_wrapper='install,remove,update,upgrade,search,list_installed,list_available,info'
+# ラッパーサブコマンド名と同じ順に本来のサブコマンドを記載する・対応するコマンドがなければ '_' とする
+sub_commands_dnf='install,remove,update,update,search,list installed,list available,info'
+sub_commands_yum='install,remove,update,update,search,list installed,list available,info'
+sub_commands_apt='install,remove,update,upgrade,search,list installed,list --upgradable,show'
+sub_commands_apt_get='install,remove,update,upgrade,_,_,_,_'
+sub_commands_pacman='-S,-Rs,_,-Syu,-Ss,-Q,-Sl,-Si'
+
+
+# 関数定義
+# ==========
+
+# メイン関数
+function main() {
+  # 何の引数もないかヘルプ指定の場合はヘルプを表示する
+  if [ -z "$1" -o "$1" == '-h' -o "$1" == '--help' ]; then
+    echo ''
+    echo '[pmw] : Package Manager Wrapper'
+    echo ''
+    echo '- Available Main Commands :'
+    echo "    ${available_main_commands}"
+    echo '- Wrapper Sub Commands :'
+    echo "    ${sub_commands_wrapper}"
+    echo '- Example :'
+    echo '    $ pmw in vim'
+    echo '       |'
+    echo '       v'
+    echo '    # yum install vim'
+    exit 0
+  fi
+  # バージョン表示
+  if [ "$1" == '-v' -o "$1" == '-V' -o "$1" == '--version' ]; then
+    echo ''
+    echo '[pmw] : Package Manager Wrapper'
+    echo ''
+    echo '- Version : 0.0.0'
+    exit 0
+  fi
+  
+  # 第1引数を退避しておく
+  local sub_command
+  sub_command="$1"
+
+  # 'list installed' や 'list avilable' のように2語のサブコマンドを特定し Shift する
+  local two_words
+  two_words="$(adjust_two_words "$1 $2")"
+  if [ -n "${two_words}" ]; then
+    shift                       # 2語で構成されていたので1つ分 Shift する
+    sub_command="${two_words}"  # 1語にまとめた値を使用し後続処理を行う
+  fi
+  
+  # エイリアスやハイフンケースを調整しサブコマンドを特定する
+  sub_command="$(adjust_alias "${sub_command}")"
+  sub_command="$(detect_sub_command "${sub_command}")"
+  shift  # $@ からサブコマンド部分を除去する
+  
+  # 正しいラッパーサブコマンドでない場合は実行しない
+  if [ -z "${sub_command}" ]; then
+    echo '[pmw] : Unknown sub command. Aborted.'
+    exit 1
+  fi
+  
+  # メインコマンドを特定する (apt-get はハイフンケースで渡される)
+  local main_command
+  main_command="$(detect_main_command)"
+  if [ -z "${main_command}" ]; then
+    echo '[pmw] : Main command not found. Aborted.'
+    exit 1
+  fi
+  
+  # ハイフンケースのコマンド名をスネークケースに変換する
+  local underscored_main_command
+  underscored_main_command="$(echo "${main_command}" | sed 's/-/_/g')"
+  
+  # メインコマンドに対応するサブコマンドを特定する
+  local actual_sub_command
+  actual_sub_command="$(detect_actual_sub_command "${underscored_main_command}" "${sub_command}")"
+  if [ -z "${actual_sub_command}" -o "${actual_sub_command}" == '_' ]; then
+    echo '[pmw] : Actual sub command not found. Aborted.'
+    exit 1
+  fi
+  
+  # サブコマンドに対応する関数を実行する
+  echo "[pmw] : ${main_command} ${actual_sub_command} $@"
+  eval "${main_command} ${actual_sub_command} $@"
+}
+
+# 2語のサブコマンドを1語にする・2語でなければ空文字を返す
+function adjust_two_words() {
+  local two_words
+  two_words=''
+  
+  case "$@" in
+    'list installed'|'ls installed')
+      two_words='list_installed'
+      ;;
+    'list available'|'ls available'|'list --upgradable'|'ls --upgradable'|'list upgradable'|'ls upgradable')
+      two_words='list_available'
+      ;;
+  esac
+  
+  echo "${two_words}"
+}
+
+# エイリアス指定の場合は本来のサブコマンドに・ハイフンケースはスネークケースに戻す
+function adjust_alias() {
+  local sub_command
+  sub_command="$1"
+  
+  case "$1" in
+    'i'|'in')
+      sub_command='install'
+      ;;
+    'r'|'rm'|'un'|'uninstall')
+      sub_command='remove'
+      ;;
+    'upd')
+      sub_command='update'
+      ;;
+    'up'|'upg')
+      sub_command='upgrade'
+      ;;
+    'find')
+      sub_command='search'
+      ;;
+    'l'|'ls'|'list-installed'|'ls-installed')
+      sub_command='list_installed'
+      ;;
+    'L'|'la'|'list-available'|'ls-available'|'list-upgradable'|'ls-upgradable')
+      sub_command='list_available'
+      ;;
+    'show')
+      sub_command='info'
+      ;;
+  esac
+  
+  echo "${sub_command}"
+}
+
+# サブコマンドを特定する・該当しないサブコマンドの場合は空文字を返す
+function detect_sub_command() {
+  local input_sub_command
+  input_sub_command="$1"
+  local sub_command
+  sub_command=''
+  
+  local column_length
+  column_length="$(echo "${sub_commands_wrapper}" | awk -F ',' '{ print NF }')"
+  # 以下の 'in' 以降はダブルクォートで囲んではダメ
+  for index in $(seq 1 ${column_length}); do
+    if [ "${input_sub_command}" == "$(echo "${sub_commands_wrapper}" | cut -d ',' -f "${index}")" ]; then
+      sub_command="${input_sub_command}"
+    fi
+  done
+  
+  echo "${sub_command}"
+}
+
+# 使用可能なメインコマンドを返す・使用できるメインコマンドがなければ空文字を返す
+function detect_main_command() {
+  local main_command
+  main_command=''
+  
+  local column_length
+  column_length="$(echo "${available_main_commands}" | awk -F ',' '{ print NF }')"
+  for index in $(seq 1 ${column_length}); do
+    local available_main_command
+    available_main_command="$(echo "${available_main_commands}" | cut -d ',' -f "${index}")"
+    if type "${available_main_command}" > /dev/null 2>&1; then
+      main_command="${available_main_command}"
+    fi
+  done
+  
+  # MacOS で JDK 内の apt を参照してしまうことがあるので回避する
+  if [ "${main_command}" == 'apt' ]; then
+    if which apt | grep -i -e 'Java' -e 'jre' -e 'jdk' > /dev/null; then
+      main_command=''
+    elif readlink "$(which apt)" | grep -i -e 'Java' -e 'jre' -e 'jdk' > /dev/null; then
+      main_command=''
+    fi
+  fi
+  
+  echo "${main_command}"
+}
+
+# 対象コマンドの実際のサブコマンドを取得する・実際のサブコマンドが見つからなければ空文字を返す
+function detect_actual_sub_command() {
+  local underscored_main_command
+  underscored_main_command="$1"
+  local sub_command
+  sub_command="$2"
+  local actual_sub_command
+  actual_sub_command=''
+  
+  # 変数 "${target_sub_commands}" を作り、対象コマンドのサブコマンド配列を渡す
+  eval target_sub_commands='${sub_commands_'"${underscored_main_command}"'}'
+  
+  # ラッパーコマンド配列から一致するサブコマンドを特定したら
+  # 同じ index から対象のサブコマンドを取得する
+  column_length="$(echo "${sub_commands_wrapper}" | awk -F ',' '{ print NF }')"
+  for index in $(seq 1 ${column_length}); do
+    if [ "${sub_command}" == "$(echo "${sub_commands_wrapper}" | cut -d ',' -f "${index}")" ]; then
+      actual_sub_command="$(echo "${target_sub_commands}" | cut -d ',' -f "${index}")"
+    fi
+  done
+  
+  echo "${actual_sub_command}"
+}
+
+
+# メイン実行
+# ==========
+
+main "$@"

@@ -11,15 +11,16 @@
 # ==========
 
 # 対応するメインコマンド名
-available_main_commands='dnf,yum,apt,apt-get,pacman'
+available_main_commands='dnf,yum,apt,apt-get,brew,pacman'
 
 # ラッパーサブコマンド名
-sub_commands_wrapper='install,remove,update,upgrade,search,list_installed,list_available,info'
+sub_commands_wrapper='install,remove,update,upgrade,search,list-installed,list-available,info'
 # ラッパーサブコマンド名と同じ順に本来のサブコマンドを記載する・対応するコマンドがなければ '_' とする
 sub_commands_dnf='install,remove,update,update,search,list installed,list available,info'
 sub_commands_yum='install,remove,update,update,search,list installed,list available,info'
 sub_commands_apt='install,remove,update,upgrade,search,list installed,list --upgradable,show'
 sub_commands_apt_get='install,remove,update,upgrade,_,_,_,_'
+sub_commands_brew='install,uninstall,update,upgrade,search,list,list,info'
 sub_commands_pacman='-S,-Rs,_,-Syu,-Ss,-Q,-Sl,-Si'
 
 
@@ -49,7 +50,7 @@ function main() {
     echo ''
     echo '[pmw] : Package Manager Wrapper'
     echo ''
-    echo '- Version : 0.0.0'
+    echo '- Version : 0.0.1'
     exit 0
   fi
   
@@ -108,10 +109,10 @@ function adjust_two_words() {
   
   case "$@" in
     'list installed'|'ls installed')
-      two_words='list_installed'
+      two_words='list-installed'
       ;;
     'list available'|'ls available'|'list --upgradable'|'ls --upgradable'|'list upgradable'|'ls upgradable')
-      two_words='list_available'
+      two_words='list-available'
       ;;
   esac
   
@@ -139,11 +140,11 @@ function adjust_alias() {
     'find')
       sub_command='search'
       ;;
-    'l'|'ls'|'list-installed'|'ls-installed')
-      sub_command='list_installed'
+    'l'|'ls'|'ls-installed')
+      sub_command='list-installed'
       ;;
-    'L'|'la'|'list-available'|'ls-available'|'list-upgradable'|'ls-upgradable')
-      sub_command='list_available'
+    'L'|'la'|'ls-available'|'list-upgradable'|'ls-upgradable')
+      sub_command='list-available'
       ;;
     'show')
       sub_command='info'

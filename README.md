@@ -22,6 +22,7 @@ $ pmw in vim
 - `yum`
 - `apt`
 - `apt-get`
+- `brew` (Homebrew)
 - `pacman`
 
 
@@ -37,6 +38,45 @@ $ pmw in vim
 - `list installed` (`ls installed`・`l`・`ls`・`list-installed`・`ls-installed`)
 - `list available` (`ls available`・`L`・`la`・`list-available`・`ls-available`・`list --upgradable`・`ls --upgradable`・`list upgradable`・`ls upgradable`・`list-upgradable`・`ls-upgradable`)
 - `info` (`show`)
+
+
+## Examples
+
+コマンドの実行例と変換後のコマンド。
+
+- In CentOS (`yum` installed)
+
+```sh
+$ pmw install vim
+# -> yum install vim
+
+$ pmw up vim
+# -> yum update vim
+```
+
+- In Ubuntu (`apt` installed)
+
+```sh
+$ pmw in -y vim
+# -> apt install -y vim
+
+$ pmw ls
+# -> apt list installed
+```
+
+- In MacOS (`brew` installed)
+
+```sh
+$ pmw in vim
+# -> brew install vim
+```
+
+- In Windows Git SDK (`pacman` installed)
+
+```sh
+$ pmw in vim
+# -> pacman -S vim
+```
 
 
 ## Author

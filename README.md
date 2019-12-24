@@ -83,7 +83,7 @@ $ pmw in vim
 
 [Neo](http://neo.s21.xrea.com/) ([@Neos21](https://twitter.com/Neos21))
 
-- [GitHub - __REPO_NAME__](https://github.com/Neos21/__REPO_NAME__)
+- [GitHub - pmw](https://github.com/Neos21/pmw)
 
 
 ## Links
